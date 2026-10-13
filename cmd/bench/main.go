@@ -11,6 +11,7 @@ import (
  "fmt"
  "io"
  "os"
+ "slices"
  "strconv"
  "strings"
  "time"
@@ -105,7 +106,7 @@ func run() error {
  }
  var warm *stats
  if *iters>0 {
-  sortFloat64(times)
+  slices.Sort(times)
   totalMs:=float64(total.Nanoseconds())/1e6
   p95idx:=(*iters*95+99)/100-1
   warm=&stats{MedianMs:times[*iters/2],P95Ms:times[p95idx],TotalMs:totalMs,OpsPerSec:float64(*iters)*1000/totalMs}
@@ -113,10 +114,6 @@ func run() error {
  peak:=peakRSS()
  out:=report{Engine:"moejs-go",Mode:*mode,Bytes:len(input),Iterations:*iters,Warmup:*warmup,PrepareMs:prepareMs,FirstMs:firstMs,Warm:warm,PeakRssKiB:peak,Digest:hex.EncodeToString(digest[:])}
  return json.NewEncoder(os.Stdout).Encode(out)
-}
-func sortFloat64(values []float64) {
- // Sorting here is outside the measured execution path.
- for i:=1;i<len(values);i++ { v:=values[i];j:=i-1;for j>=0&&values[j]>v {values[j+1]=values[j];j--};values[j+1]=v }
 }
 func peakRSS() *int64 {
  data,err:=os.ReadFile("/proc/self/status")
