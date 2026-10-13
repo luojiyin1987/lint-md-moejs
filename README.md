@@ -53,3 +53,9 @@ would not establish compatibility with the original engine.
 
 The original Core API and its public source-location contract remain the
 source of truth; no production implementation changes are proposed.
+
+GitHub Actions run [38425283733](https://github.com/luojiyin1987/lint-md-moejs/actions/runs/38425283733)
+confirmed the first six fixtures passed across all three execution paths.
+The expanded cases add frontmatter, GFM tables, blockquotes, inline code,
+math, empty input and Unicode boundary conditions. This is a finite corpus,
+not evidence of full ECMAScript or lint-md compatibility.

@@ -36,6 +36,16 @@ const cases = [
   ['emoji UTF-16', '😀中文English\n'],
   ['fenced code', '`example`\n\n```js\nconst x = 1;\n```\n'],
   ['CRLF', '第一行\r\n第二行English\r\n'],
+  ['empty document', ''],
+  ['blank lines', '\n\n'],
+  ['frontmatter', '---\ntitle: 你好\n---\n\n中文English\n'],
+  ['GFM table', '| 中文 | English |\n| --- | --- |\n| 你好 | world |\n'],
+  ['link', '[中文](https://example.com)English\n'],
+  ['nested blockquote', '> 中文English\n> - 版本123\n'],
+  ['combining characters', 'e\u0301 😀 中文English\n'],
+  ['inline code', '内联 `中文English` 后面English\n'],
+  ['math', '$x+y$ 中文English\n'],
+  ['repeated paragraphs', '中文English 123\n\n'.repeat(20)],
 ];
 
 for (const [name, markdown] of cases) {
