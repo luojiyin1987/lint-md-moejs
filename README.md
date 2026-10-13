@@ -16,7 +16,7 @@ Prerequisites: Go 1.25+, Node.js 22+, npm. From the repository root:
 ```sh
 npm install --prefix js --no-audit --no-fund
 npm run build --prefix js
-go mod download
+go mod tidy
 go test ./...
 npm run compare --prefix js
 printf '中文English 123\n' | go run ./cmd/probe -bundle js/dist/lint-md.mjs
