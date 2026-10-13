@@ -59,3 +59,25 @@ confirmed the first six fixtures passed across all three execution paths.
 The expanded cases add frontmatter, GFM tables, blockquotes, inline code,
 math, empty input and Unicode boundary conditions. This is a finite corpus,
 not evidence of full ECMAScript or lint-md compatibility.
+
+## PR #3: fixMarkdown differential tests
+
+The `-fix` flag is a **probe mode**, not a replacement CLI. It reports
+`fixedText`, `convergence`, `rounds`, initial and remaining diagnostics,
+and fix conflicts with the final round's coordinates. It intentionally omits
+wall-clock `metrics`: timings cannot be compared meaningfully across engines.
+
+```sh
+printf '中文English １２\n' | go run ./cmd/probe -fix -bundle js/dist/lint-md.mjs
+npm run compare:fix --prefix js
+```
+
+`js/fix-scenarios.mjs` contains **test-only** custom rules for deterministic
+multi-round convergence, a two-state cycle, overlapping ranges, same-offset
+insertions, and the ten-round cap. Both the original Node.js Core and the
+bundled JS import these same rule definitions; the oracle's result projection
+is independent. The fixture scenarios are not a public plugin API.
+
+The compatibility suite checks original Node.js Core vs bundled Node.js Core
+vs moejs, preserving each diagnostic's own source offsets. It does not
+claim full correctness across arbitrary Markdown or third-party rules.
