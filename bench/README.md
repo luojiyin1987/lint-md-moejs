@@ -42,7 +42,7 @@ different answers. It alternates host order between trials.
 - **Trials:** 3 per host/workload, report median; p95 is an intra-trial p95
   over individual calls. These tiny samples are exploratory, not a stable
   microbenchmark or statistically powered comparison.
-- **Scenarios:** small and ~20 KiB Markdown with Chinese, numbers, links,
+- **Scenarios:** small and ~28 KiB Markdown with Chinese, numbers, links,
   blockquotes and fenced code, both lint and multi-pass default fixes.
 
 Do not claim superiority from one CI runner. Use a dedicated machine,
