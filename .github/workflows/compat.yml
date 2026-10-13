@@ -1,11 +1,8 @@
 name: Compatibility spike
 
 on:
-  push:
-    branches:
-      - main
-      - spike/**
   pull_request:
+  workflow_dispatch:
 
 jobs:
   verify:
@@ -19,13 +16,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install JavaScript dependencies
-        run: npm install --prefix js --no-audit --no-fund
-      - name: Bundle lint-md core
-        run: npm run build --prefix js
       - name: Download Go dependencies
         run: go mod download
       - name: Test moejs module handling
         run: go test ./...
+      - name: Install JavaScript dependencies
+        run: npm install --prefix js --no-audit --no-fund
+      - name: Bundle lint-md core
+        run: npm run build --prefix js
       - name: Compare diagnostics with Node.js
         run: npm run compare --prefix js
