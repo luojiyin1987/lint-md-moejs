@@ -91,10 +91,10 @@ for (const {name, input} of scenarios) {
         prepareMs: median(items.map(o => o.cold.prepareMs)),
         firstCallMs: median(items.map(o => o.cold.firstMs)),
         warmMedianMs: median(items.map(o => o.warm.warm.medianMs)),
-        nodeCallMedianMs: engine === 'node-bundled'
-          ? median(items.map(o => o.warm.warm.callMedianMs)) : null,
-        nodeSerializeMedianMs: engine === 'node-bundled'
-          ? median(items.map(o => o.warm.warm.serializeMedianMs)) : null,
+        warmCallMedianMs: median(items.map(o => o.warm.warm.callMedianMs)),
+        warmDecodeMedianMs: engine === 'moejs-go'
+          ? median(items.map(o => o.warm.warm.decodeMedianMs)) : null,
+        warmSerializeMedianMs: median(items.map(o => o.warm.warm.serializeMedianMs)),
         warmP95Ms: median(items.map(o => o.warm.warm.p95Ms)),
         warmOpsPerSec: median(items.map(o => o.warm.warm.opsPerSec)),
         peakRssKiB: items.every(o => o.warm.peakRssKiB !== null)
