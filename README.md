@@ -33,3 +33,29 @@ The published @lint-md/parser 0.4.0 ESM distribution contains imports for Node b
 The published parser pulls in remark/micromark and related dependencies. ESM bundling does not guarantee that the code is compatible with moejs or that it avoids Node.js-specific APIs. The CI workflow is the execution oracle for this first spike. If it fails, use the build/compile/load/call stage from stderr to record the blocker; do not add broad shims just to turn the check green.
 
 This stage does not measure throughput, implement concurrent workers or expose a CLI interface for production use. The TypeScript implementation remains the behavioral reference. A future PR may add a larger pinned fixture corpus and performance benchmarks if the compatibility experiment succeeds.
+
+## PR #2: string-only bundling compatibility
+
+The published parser's ESM bundle imports Node's `path`, `process`, and
+`url` even when linting a string. A neutral esbuild build substitutes three
+**restricted** experiment-only modules:
+
+- `process.cwd()` returns `/`, because no paths are passed to the parser.
+- Every `path` API throws if accessed.
+- `fileURLToPath` throws if accessed.
+
+These are **not** general Node.js polyfills. If a new dependency needs a
+path operation, the test fails and that behavior must be investigated rather
+than silently emulated. The differential suite compares three paths:
+the original published Core running in Node.js, the bundled Core in Node.js,
+and the bundled Core in moejs. Matching only the two bundled executions
+would not establish compatibility with the original engine.
+
+The original Core API and its public source-location contract remain the
+source of truth; no production implementation changes are proposed.
+
+GitHub Actions run [38425283733](https://github.com/luojiyin1987/lint-md-moejs/actions/runs/38425283733)
+confirmed the first six fixtures passed across all three execution paths.
+The expanded cases add frontmatter, GFM tables, blockquotes, inline code,
+math, empty input and Unicode boundary conditions. This is a finite corpus,
+not evidence of full ECMAScript or lint-md compatibility.
