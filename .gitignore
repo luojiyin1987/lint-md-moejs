@@ -1,3 +1,5 @@
 js/node_modules/
 js/dist/
 .DS_Store
+bench/lint-md-go
+bench/results.json

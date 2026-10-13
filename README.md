@@ -81,3 +81,11 @@ is independent. The fixture scenarios are not a public plugin API.
 The compatibility suite checks original Node.js Core vs bundled Node.js Core
 vs moejs, preserving each diagnostic's own source offsets. It does not
 claim full correctness across arbitrary Markdown or third-party rules.
+
+## PR #4: runtime benchmarks
+
+For process cold-start, reusable-runtime warm calls, JSON digest verification
+and whole-process peak RSS, see [bench/README.md](bench/README.md). CI exercises
+the benchmark harness without performance thresholds. A separate manual
+workflow records exploratory results; benchmarks do not establish production
+performance or replace the existing Node.js implementation.
