@@ -16,8 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Download Go dependencies
-        run: go mod download
+      - name: Resolve Go dependencies
+        run: go mod tidy
       - name: Test moejs module handling
         run: go test ./...
       - name: Install JavaScript dependencies
