@@ -28,3 +28,7 @@ jobs:
         run: npm run compare --prefix js
       - name: Compare multi-round fixes with Node.js
         run: npm run compare:fix --prefix js
+      - name: Build benchmark binary outside measurements
+        run: go build -o bench/lint-md-go ./cmd/bench
+      - name: Benchmark harness smoke (correctness, no perf thresholds)
+        run: npm run bench:smoke --prefix js

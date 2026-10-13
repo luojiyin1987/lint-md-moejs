@@ -1,0 +1,33 @@
+name: Benchmark (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and bundle pinned JavaScript packages
+        run: |
+          npm install --prefix js --no-audit --no-fund
+          npm run build --prefix js
+      - name: Resolve and build Go (outside measurements)
+        run: |
+          go mod tidy
+          go build -o bench/lint-md-go ./cmd/bench
+      - name: Run benchmarks
+        run: npm run bench --prefix js -- --out bench/results.json
+      - name: Upload raw JSON report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-md-runtime-benchmark
+          path: bench/results.json
+          retention-days: 14

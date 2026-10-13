@@ -5,7 +5,9 @@
   "scripts": {
     "build": "esbuild entry.ts --bundle --platform=neutral --format=esm --target=es2022 --alias:path=./shims/path.ts --alias:process=./shims/process.ts --alias:url=./shims/url.ts --outfile=dist/lint-md.mjs",
     "compare": "node compare.mjs",
-    "compare:fix": "node compare-fix.mjs"
+    "compare:fix": "node compare-fix.mjs",
+    "bench:smoke": "node ../bench/compare.mjs --smoke",
+    "bench": "node ../bench/compare.mjs"
   },
   "dependencies": {
     "@lint-md/core": "2.5.3"
