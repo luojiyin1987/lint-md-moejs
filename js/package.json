@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild entry.ts --bundle --platform=neutral --format=esm --target=es2022 --outfile=dist/lint-md.mjs",
+    "build": "esbuild entry.ts --bundle --platform=neutral --format=esm --target=es2022 --alias:path=./shims/path.ts --alias:process=./shims/process.ts --alias:url=./shims/url.ts --outfile=dist/lint-md.mjs",
     "compare": "node compare.mjs"
   },
   "dependencies": {
