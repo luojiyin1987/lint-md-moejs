@@ -24,6 +24,10 @@ printf '中文English 123\n' | go run ./cmd/probe -bundle js/dist/lint-md.mjs
 
 `npm run compare` calls Go once for each fixture and checks that the parsed JSON result matches Node.js. Nonzero exit codes are failures, not skipped tests. The bundle is a generated local artifact, never committed.
 
+## First CI observation (2026-10-13)
+
+The published @lint-md/parser 0.4.0 ESM distribution contains imports for Node built-ins path, process and url. A neutral ESM bundle of the published @lint-md/core@2.5.3 therefore fails during esbuild resolution before moejs can execute it. This is a concrete compatibility blocker, not an engine benchmark. The build intentionally fails rather than adding unproven shims or silently externalizing the Node modules.
+
 ## What remains unproven
 
 The published parser pulls in remark/micromark and related dependencies. ESM bundling does not guarantee that the code is compatible with moejs or that it avoids Node.js-specific APIs. The CI workflow is the execution oracle for this first spike. If it fails, use the build/compile/load/call stage from stderr to record the blocker; do not add broad shims just to turn the check green.
