@@ -7,6 +7,7 @@ import { cpus, platform, arch, release } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import assert from 'node:assert/strict';
+import { fixture } from './workload.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const smoke = process.argv.includes('--smoke');
@@ -18,18 +19,19 @@ const outputPath = outIndex === -1 ? null : resolve(root, process.argv[outIndex 
 const goBinary = resolve(root, process.env.GO_BENCH_BIN ?? 'bench/lint-md-go');
 const nodeScript = resolve(root, 'bench/node-runner.mjs');
 const bundle = resolve(root, 'js/dist/lint-md.mjs');
-const paragraph = '## 章节\n中文English １２３，版本V2。\n\n' +
-  '> 引用中文English 456。\n\n' +
-  '`inline code` 和 [链接](https://example.org) 介绍。\n\n' +
-  '```go\nfmt.Println("中文English")\n```\n\n';
-const scenarios = [
-  {name: 'small', input: paragraph},
-  {name: 'large', input: paragraph.repeat(160)},
-];
-const kinds = smoke ? ['lint'] : ['lint', 'fix'];
+const scaling = process.argv.includes('--scale');
+const scenarios = scaling
+  ? [1, 8, 32, 160].map((repeat) => ({
+      name: 'repeat-' + repeat, input: fixture(repeat),
+    }))
+  : [
+      {name: 'small', input: fixture(1)},
+      {name: 'large', input: fixture(160)},
+    ];
+const kinds = smoke ? ['parse', 'lint'] : ['parse', 'lint', 'fix'];
 const repeats = smoke ? 1 : 3;
 const warmup = smoke ? 1 : 10;
-const iterations = smoke ? 2 : 40;
+const iterations = smoke ? 2 : scaling ? 12 : 40;
 const rows = [];
 function execute(engine, mode, input, warm) {
   const args = engine === 'moejs-go'
@@ -89,6 +91,10 @@ for (const {name, input} of scenarios) {
         prepareMs: median(items.map(o => o.cold.prepareMs)),
         firstCallMs: median(items.map(o => o.cold.firstMs)),
         warmMedianMs: median(items.map(o => o.warm.warm.medianMs)),
+        nodeCallMedianMs: engine === 'node-bundled'
+          ? median(items.map(o => o.warm.warm.callMedianMs)) : null,
+        nodeSerializeMedianMs: engine === 'node-bundled'
+          ? median(items.map(o => o.warm.warm.serializeMedianMs)) : null,
         warmP95Ms: median(items.map(o => o.warm.warm.p95Ms)),
         warmOpsPerSec: median(items.map(o => o.warm.warm.opsPerSec)),
         peakRssKiB: items.every(o => o.warm.peakRssKiB !== null)
@@ -115,10 +121,11 @@ const meta = {
   go: execFileSync('go', ['version'], {cwd:root, encoding:'utf8'}).trim(),
   sha: process.env.GITHUB_SHA ?? null,
   smoke,
+  scaling,
   warmup,
   iterations,
   repeats,
-  note: 'Go warm = JS call + Go Unmarshal + JSON Marshal. Node warm = local JS call + JSON.stringify. Cold process wall includes runtime/process startup but excludes Go build and JS bundle build. RSS is process VmHWM; results are not pure JS-engine benchmarks. No performance thresholds.',
+  note: 'Go warm = JS call + Go Unmarshal + JSON Marshal. Node warm = local JS call + JSON.stringify. Node call/serialize stages are additional observations. The parse hook includes parser + source-map construction, with no rule execution; parse and lint timings are NOT strictly additive. Cold process wall includes runtime/process startup but excludes Go build and JS bundle build. RSS is process VmHWM; results are not pure JS-engine benchmarks. No performance thresholds.',
 };
 const report = {meta, rows};
 if (outputPath) writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n');

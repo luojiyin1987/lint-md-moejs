@@ -15,7 +15,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
 const mode = opts.mode ?? 'lint';
 const iterations = Number(opts.iterations ?? 100);
 const warmup = Number(opts.warmup ?? 10);
-if (!['lint', 'fix'].includes(mode) || !Number.isSafeInteger(iterations) ||
+if (!['parse', 'lint', 'fix'].includes(mode) || !Number.isSafeInteger(iterations) ||
     !Number.isSafeInteger(warmup) || iterations < 0 || warmup < 0) {
   throw new Error('invalid benchmark arguments');
 }
@@ -29,35 +29,48 @@ const hook = bundle[mode];
 if (typeof hook !== 'function') throw new Error('missing hook: ' + mode);
 const prepareMs = performance.now() - beforeImport;
 const call = () => {
+  const start = performance.now();
   const out = mode === 'fix' ? hook(input, 'default') : hook(input);
+  const callMs = performance.now() - start;
   if (out.complete !== true) throw new Error('incomplete output');
-  const value = JSON.stringify(out);
-  if (!value) throw new Error('empty serialization');
-  return value;
+  const serializedAt = performance.now();
+  const text = JSON.stringify(out);
+  const serializeMs = performance.now() - serializedAt;
+  if (!text) throw new Error('empty serialization');
+  return {text, callMs, serializeMs};
 };
 const firstStart = performance.now();
 const first = call();
 const firstMs = performance.now() - firstStart;
-const digest = createHash('sha256').update(first).digest('hex');
+const digest = createHash('sha256').update(first.text).digest('hex');
 function verify(s) {
   if (createHash('sha256').update(s).digest('hex') !== digest)
     throw new Error('non-deterministic output');
 }
-for (let i = 0; i < warmup; i++) verify(call());
+for (let i = 0; i < warmup; i++) verify(call().text);
 const samples = [];
+const calls = [];
+const serializations = [];
 let totalMs = 0;
 for (let i = 0; i < iterations; i++) {
   const started = performance.now();
   const output = call();
   const ms = performance.now() - started;
-  verify(output);
+  verify(output.text);
   samples.push(ms);
+  calls.push(output.callMs);
+  serializations.push(output.serializeMs);
   totalMs += ms;
 }
-samples.sort((a, b) => a - b);
+function med(values) {
+  values.sort((a, b) => a - b);
+  return values[Math.floor(values.length / 2)];
+}
 const warm = iterations === 0 ? null : {
-  medianMs: samples[Math.floor(iterations / 2)],
+  medianMs: med(samples),
   p95Ms: samples[Math.ceil(iterations * 0.95) - 1],
+  callMedianMs: med(calls),
+  serializeMedianMs: med(serializations),
   totalMs,
   opsPerSec: iterations * 1000 / totalMs,
 };

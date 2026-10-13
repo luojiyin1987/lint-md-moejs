@@ -25,9 +25,24 @@ jobs:
           go build -o bench/lint-md-go ./cmd/bench
       - name: Run benchmarks
         run: npm run bench --prefix js -- --out bench/results.json
+      - name: Benchmark scaling (1, 8, 32, 160 paragraphs)
+        run: npm run bench:scale --prefix js -- --out bench/scaling-results.json
+      - name: Capture CPU and heap profiles for warm lint
+        run: |
+          node --input-type=module -e "import { fixture } from './bench/workload.mjs'; process.stdout.write(fixture(160))" > bench/profile-input.md
+          ./bench/lint-md-go -bundle js/dist/lint-md.mjs -mode lint -warmup 5 -iterations 50 -cpu-profile bench/cpu.pprof -heap-profile bench/heap.pprof < bench/profile-input.md > bench/profile-report.json
+          go tool pprof -top -nodecount=20 bench/cpu.pprof > bench/cpu-top.txt
+          go tool pprof -alloc_space -top -nodecount=20 bench/heap.pprof > bench/alloc-top.txt
       - name: Upload raw JSON report
         uses: actions/upload-artifact@v4
         with:
           name: lint-md-runtime-benchmark
-          path: bench/results.json
+          path: |
+            bench/results.json
+            bench/scaling-results.json
+            bench/profile-report.json
+            bench/cpu.pprof
+            bench/heap.pprof
+            bench/cpu-top.txt
+            bench/alloc-top.txt
           retention-days: 14
