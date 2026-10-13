@@ -1,0 +1,15 @@
+{
+  "name": "lint-md-moejs-compat-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild entry.ts --bundle --platform=neutral --format=esm --target=es2022 --outfile=dist/lint-md.mjs",
+    "compare": "node compare.mjs"
+  },
+  "dependencies": {
+    "@lint-md/core": "2.5.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  }
+}
