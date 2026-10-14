@@ -3,3 +3,8 @@ js/dist/
 .DS_Store
 bench/lint-md-go
 bench/results.json
+bench/*.pprof
+bench/*-top.txt
+bench/profile-*.json
+bench/profile-input.md
+bench/scaling-results.json

@@ -89,3 +89,9 @@ and whole-process peak RSS, see [bench/README.md](bench/README.md). CI exercises
 the benchmark harness without performance thresholds. A separate manual
 workflow records exploratory results; benchmarks do not establish production
 performance or replace the existing Node.js implementation.
+
+## PR #5: Profile before optimizing
+
+The parser-only baseline, Go call/decode/serialize stage measurements,
+scaling corpus and manual CPU/heap profiling instructions are documented in
+[bench/README.md](bench/README.md). This PR does not alter linting semantics.

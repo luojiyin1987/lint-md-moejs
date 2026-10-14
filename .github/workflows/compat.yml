@@ -32,3 +32,12 @@ jobs:
         run: go build -o bench/lint-md-go ./cmd/bench
       - name: Benchmark harness smoke (correctness, no perf thresholds)
         run: npm run bench:smoke --prefix js
+      - name: Profile flags smoke (no performance assertions)
+        run: |
+          node --input-type=module -e "import { fixture } from './bench/workload.mjs'; process.stdout.write(fixture(32))" > /tmp/lint-md-profile-input.md
+          ./bench/lint-md-go -bundle js/dist/lint-md.mjs -mode parse -iterations 5 -warmup 1 -cpu-profile /tmp/lint-md-cpu.pprof -heap-profile /tmp/lint-md-heap.pprof < /tmp/lint-md-profile-input.md > /tmp/lint-md-profile.json
+          test -s /tmp/lint-md-cpu.pprof
+          test -s /tmp/lint-md-heap.pprof
+          node -e "const r=require('/tmp/lint-md-profile.json');if(r.mode!=='parse'||!r.digest||!r.warm)process.exit(1)"
+          go tool pprof -top /tmp/lint-md-cpu.pprof > /dev/null
+          go tool pprof -alloc_space -top /tmp/lint-md-heap.pprof > /dev/null

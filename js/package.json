@@ -7,10 +7,12 @@
     "compare": "node compare.mjs",
     "compare:fix": "node compare-fix.mjs",
     "bench:smoke": "node ../bench/compare.mjs --smoke",
-    "bench": "node ../bench/compare.mjs"
+    "bench": "node ../bench/compare.mjs",
+    "bench:scale": "node ../bench/compare.mjs --scale"
   },
   "dependencies": {
-    "@lint-md/core": "2.5.3"
+    "@lint-md/core": "2.5.3",
+    "@lint-md/parser": "0.4.0"
   },
   "devDependencies": {
     "esbuild": "0.28.1"
