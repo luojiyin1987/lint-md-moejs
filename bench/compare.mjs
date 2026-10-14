@@ -29,7 +29,7 @@ const scenarios = scaling
       {name: 'small', input: fixture(1)},
       {name: 'large', input: fixture(160)},
     ];
-const kinds = ['parse', 'lint', 'fix'];
+const kinds = ['parseBare', 'parse', 'lint', 'fix'];
 const repeats = smoke ? 1 : 3;
 const warmup = smoke ? 1 : 10;
 const iterations = smoke ? 2 : scaling ? 12 : 40;
@@ -60,13 +60,21 @@ function execute(engine, mode, input, warm, emitResult = false) {
   assert.equal(value.engine, engine);
   assert.equal(value.mode, mode);
   assert.equal(value.bytes, Buffer.byteLength(input));
-  if (warm) assert.ok(value.warm?.opsPerSec > 0);
+  if (warm) {
+    assert.ok(value.warm?.opsPerSec > 0);
+    if (engine === 'moejs-go') {
+      assert.ok(value.goMemory?.bytesPerOp >= 0);
+      assert.ok(value.goMemory?.allocsPerOp >= 0);
+      assert.ok(value.goMemory?.gcCycles >= 0);
+    }
+  }
   return { ...value, processWallMs: wallMs };
 }
 function median(values) {
   return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 }
 for (const {name, input} of scenarios) {
+  let parseBareResults;
   for (const mode of kinds) {
     // Fetch full structured results in separate, untimed processes.
     // This avoids injecting IPC payload size into the timed benchmark runs.
@@ -81,6 +89,22 @@ for (const {name, input} of scenarios) {
       throw new Error('Node.js/moejs semantic mismatch for ' + name + '/' + mode +
         ' at ' + describeMismatch(difference));
     }
+    // parseBare and parse return the same small projection. This is an
+    // additional invariant, independent of Node-vs-Go semantic parity.
+    if (mode === 'parse') {
+      for (const engine of ['moejs-go', 'node-bundled']) {
+        const prior = parseBareResults[engine];
+        const controlDifference = firstMismatch(prior, semantic[engine].result);
+        if (controlDifference) {
+          throw new Error('parse vs parseBare projection mismatch in ' + engine +
+            ' (' + name + '): ' + describeMismatch(controlDifference));
+        }
+      }
+    }
+    if (mode === 'parseBare') parseBareResults = {
+      'moejs-go': semantic['moejs-go'].result,
+      'node-bundled': semantic['node-bundled'].result,
+    };
     const observations = { 'moejs-go': [], 'node-bundled': [] };
     for (let i = 0; i < repeats; i++) {
       // Alternate order to mitigate, not eliminate, scheduler/cache bias.
@@ -117,6 +141,14 @@ for (const {name, input} of scenarios) {
           ? median(items.map(o => o.warm.warm.decodeMedianMs)) : null,
         warmSerializeMedianMs: median(items.map(o => o.warm.warm.serializeMedianMs)),
         warmP95Ms: median(items.map(o => o.warm.warm.p95Ms)),
+        goBytesPerOp: engine === 'moejs-go'
+          ? median(items.map(o => o.warm.goMemory.bytesPerOp)) : null,
+        goAllocsPerOp: engine === 'moejs-go'
+          ? median(items.map(o => o.warm.goMemory.allocsPerOp)) : null,
+        goGCCycles: engine === 'moejs-go'
+          ? median(items.map(o => o.warm.goMemory.gcCycles)) : null,
+        goGCPauseMs: engine === 'moejs-go'
+          ? median(items.map(o => o.warm.goMemory.gcPauseMs)) : null,
         warmOpsPerSec: median(items.map(o => o.warm.warm.opsPerSec)),
         peakRssKiB: items.every(o => o.warm.peakRssKiB !== null)
           ? median(items.map(o => o.warm.peakRssKiB)) : null,
@@ -147,7 +179,7 @@ const meta = {
   warmup,
   iterations,
   repeats,
-  note: 'Go warm = JS call + Go Unmarshal + JSON Marshal. Node warm = local JS call + JSON.stringify. Node call/serialize stages are additional observations. The parse hook includes parser + source-map construction, with no rule execution; parse and lint timings are NOT strictly additive. Cold process wall includes runtime/process startup but excludes Go build and JS bundle build. RSS is process VmHWM; results are not pure JS-engine benchmarks. No performance thresholds.',
+  note: 'parseBare calls parseMd only; parse calls parseMdWithSourceMap. Both return identical root child count and UTF-16 source length projections, checked in both hosts. Go heap allocations/GC are deltas of runtime.MemStats over measured warm calls; they include Go runtime/interpreter overhead and background activity, not per-JS-object accounting. No forced GC, no timing thresholds. Node warm uses local JS call + stringify; Go warm also decodes and reserializes output. RSS is whole-process VmHWM.',
 };
 const report = {meta, rows};
 if (outputPath) writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n');

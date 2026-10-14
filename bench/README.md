@@ -108,3 +108,49 @@ characters such as `>`. The `outputDigest` in reports is a **Node.js
 reference byte digest**, not a proof of cross-host identical encoding.
 `crossHostSemanticEqual: true` indicates a successful structured check.
 Cold process timing excludes the separate semantic-result probe.
+
+## PR #7: Parser vs Source Map and Go GC sensitivity
+
+`parseBare(markdown)` invokes `@lint-md/parser.parseMd` without a source map,
+while the existing `parse(markdown)` calls `parseMdWithSourceMap`.
+Both return the **same compact projection** (root child count, UTF-16 input
+length, complete flag); the benchmark checks their equality *within each
+runtime*, and the decoded output parity *across Go/moejs and Node.js*.
+The difference between those hook durations is a **directional estimate**
+of source-map-building overhead, not a precise source-map-only timer or an
+optimization claim. The input AST is not marshaled to the host.
+
+In addition to wall clock / peak RSS, the Go benchmark now records
+`goMemory` from two `runtime.ReadMemStats` snapshots surrounding only the
+warm measured calls: `bytesPerOp` (delta TotalAlloc / calls),
+`allocsPerOp` (delta Mallocs / calls), `gcCycles`, `gcPauseMs`,
+and live `HeapAlloc` before and after the calls.
+
+These are **Go-process heap counters** and include the Go-based interpreter,
+host conversion and other runtime activity; they do not isolate individual
+JS objects. No forced GC is run before measurement. Because GC and
+concurrent runtime tasks can overlap, these are approximate per-call
+attribution values rather than strict per-request allocations.
+
+The optional GC sensitivity sweep uses three separate Go processes for each
+`GOGC=50`, `100`, and `200`, with modes `parseBare` and `parse`
+on **32 repeated paragraphs**. Each normal setting gets three independent
+trials, each with warmup and 12 measured calls; the rotated order reduces
+(but cannot eliminate) sequence bias. `GOGC=off` is intentionally not used,
+to avoid unbounded heap growth in this object-heavy workload.
+
+```sh
+npm run bench:smoke --prefix js
+node --test bench/parse-variants.test.mjs
+npm run bench:gc:smoke --prefix js
+
+# On a fixed host, after building bench/lint-md-go and JS bundle:
+npm run bench:scale --prefix js -- --out bench/scaling-results.json
+npm run bench:gc --prefix js -- --out bench/gc-results.json
+```
+
+The manual workflow uploads `gc-results.json` with the other benchmark
+artifacts. CI only checks that the modes, equality guards, and counters work.
+**No throughput or allocation regression thresholds** are placed on
+GitHub-hosted runners. Use a quiet, dedicated Linux machine for conclusions
+about GOGC tradeoffs; interpret latency, allocation rate and RSS together.

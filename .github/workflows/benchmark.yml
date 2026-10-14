@@ -27,6 +27,8 @@ jobs:
         run: npm run bench --prefix js -- --out bench/results.json
       - name: Benchmark scaling (1, 8, 32, 160 paragraphs)
         run: npm run bench:scale --prefix js -- --out bench/scaling-results.json
+      - name: GOGC sensitivity (Go-only, process-isolated)
+        run: npm run bench:gc --prefix js -- --out bench/gc-results.json
       - name: Capture CPU and heap profiles for warm lint
         run: |
           node --input-type=module -e "import { fixture } from './bench/workload.mjs'; process.stdout.write(fixture(160))" > bench/profile-input.md
@@ -41,6 +43,7 @@ jobs:
           path: |
             bench/results.json
             bench/scaling-results.json
+            bench/gc-results.json
             bench/profile-report.json
             bench/cpu.pprof
             bench/heap.pprof

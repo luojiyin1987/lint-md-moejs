@@ -15,7 +15,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
 const mode = opts.mode ?? 'lint';
 const iterations = Number(opts.iterations ?? 100);
 const warmup = Number(opts.warmup ?? 10);
-if (!['parse', 'lint', 'fix'].includes(mode) || !Number.isSafeInteger(iterations) ||
+if (!['parse', 'parseBare', 'lint', 'fix'].includes(mode) || !Number.isSafeInteger(iterations) ||
     !Number.isSafeInteger(warmup) || iterations < 0 || warmup < 0) {
   throw new Error('invalid benchmark arguments');
 }
