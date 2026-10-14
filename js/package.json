@@ -8,7 +8,9 @@
     "compare:fix": "node compare-fix.mjs",
     "bench:smoke": "node ../bench/compare.mjs --smoke",
     "bench": "node ../bench/compare.mjs",
-    "bench:scale": "node ../bench/compare.mjs --scale"
+    "bench:scale": "node ../bench/compare.mjs --scale",
+    "bench:gc": "node ../bench/gc-sweep.mjs",
+    "bench:gc:smoke": "node ../bench/gc-sweep.mjs --smoke"
   },
   "dependencies": {
     "@lint-md/core": "2.5.3",

@@ -9,3 +9,4 @@ bench/profile-*.json
 bench/profile-input.md
 bench/scaling-results.json
 bench/mismatch.json
+bench/gc-results.json

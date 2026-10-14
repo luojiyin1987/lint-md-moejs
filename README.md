@@ -95,3 +95,11 @@ performance or replace the existing Node.js implementation.
 The parser-only baseline, Go call/decode/serialize stage measurements,
 scaling corpus and manual CPU/heap profiling instructions are documented in
 [bench/README.md](bench/README.md). This PR does not alter linting semantics.
+
+## PR #7: parser and memory decomposition
+
+The benchmark harness now compares `parseMd()` with
+`parseMdWithSourceMap()` using equal output projections, and collects
+Go allocation and GC counters for warm calls. A separate, bounded Go-only
+`GOGC` sweep is available. See [bench/README.md](bench/README.md). The
+result is instrumentation, not a runtime optimization.

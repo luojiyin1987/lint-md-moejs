@@ -45,6 +45,17 @@ type sample struct {
  serializeMs float64
 }
 
+// Go-heap counters across the measured warm calls only. These include
+// the moejs Go interpreter and Go runtime, not Node/V8 memory.
+type memoryStats struct {
+ BytesPerOp float64 `json:"bytesPerOp"`
+ AllocsPerOp float64 `json:"allocsPerOp"`
+ GCCycles uint32 `json:"gcCycles"`
+ GCPauseMs float64 `json:"gcPauseMs"`
+ HeapAllocBefore uint64 `json:"heapAllocBefore"`
+ HeapAllocAfter uint64 `json:"heapAllocAfter"`
+}
+
 type report struct {
  Engine string `json:"engine"`
  Mode string `json:"mode"`
@@ -54,6 +65,7 @@ type report struct {
  PrepareMs float64 `json:"prepareMs"`
  FirstMs float64 `json:"firstMs"`
  Warm *stats `json:"warm"`
+ GoMemory *memoryStats `json:"goMemory,omitempty"`
  PeakRssKiB *int64 `json:"peakRssKiB"`
  Digest string `json:"digest"`
  Result json.RawMessage `json:"result,omitempty"`
@@ -71,8 +83,8 @@ func run() error {
  heapProfile:=flag.String("heap-profile","","write retained heap pprof after measured calls")
  emitResult:=flag.Bool("emit-result",false,"include decoded result outside timing, for semantic comparison")
  flag.Parse()
- if flag.NArg()!=0 || (*mode!="lint" && *mode!="fix" && *mode!="parse") || *iters<0 || *warmup<0 || (*cpuProfile!="" && *iters==0) {
-  return errors.New("usage: bench -mode=parse|lint|fix -bundle=<path> -iterations=N -warmup=N")
+ if flag.NArg()!=0 || (*mode!="lint" && *mode!="fix" && *mode!="parse" && *mode!="parseBare") || *iters<0 || *warmup<0 || (*cpuProfile!="" && *iters==0) {
+  return errors.New("usage: bench -mode=parse|parseBare|lint|fix -bundle=<path> -iterations=N -warmup=N")
  }
  input,err:=io.ReadAll(io.LimitReader(os.Stdin,8<<20+1))
  if err!=nil { return fmt.Errorf("read input: %w",err) }
@@ -100,7 +112,7 @@ func run() error {
   started=time.Now()
   var decoded any
   switch *mode {
-  case "parse":
+  case "parse", "parseBare":
    var v parsed
    if err:=rt.Unmarshal(out,&v);err!=nil{return sample{},fmt.Errorf("decode parse: %w",err)}
    if !v.Complete{return sample{},errors.New("incomplete parse")}
@@ -133,6 +145,10 @@ func run() error {
  decodes:=make([]float64,*iters)
  serializes:=make([]float64,*iters)
  var total time.Duration
+ // Both snapshots are outside the timed call loop. Do not force a GC:
+ // collector work is part of the workload under the selected GOGC.
+ var memoryBefore, memoryAfter runtime.MemStats
+ if *iters>0 {runtime.ReadMemStats(&memoryBefore)}
  measured:=func() error {
   if *cpuProfile!="" {
    file,err:=os.Create(*cpuProfile);if err!=nil{return fmt.Errorf("open CPU profile: %w",err)}
@@ -153,6 +169,19 @@ func run() error {
   return nil
  }
  if err:=measured();err!=nil{return err}
+ if *iters>0 {runtime.ReadMemStats(&memoryAfter)}
+ var goMemory *memoryStats
+ if *iters>0 {
+  count:=float64(*iters)
+  goMemory=&memoryStats{
+   BytesPerOp:float64(memoryAfter.TotalAlloc-memoryBefore.TotalAlloc)/count,
+   AllocsPerOp:float64(memoryAfter.Mallocs-memoryBefore.Mallocs)/count,
+   GCCycles:memoryAfter.NumGC-memoryBefore.NumGC,
+   GCPauseMs:float64(memoryAfter.PauseTotalNs-memoryBefore.PauseTotalNs)/1e6,
+   HeapAllocBefore:memoryBefore.HeapAlloc,
+   HeapAllocAfter:memoryAfter.HeapAlloc,
+  }
+ }
  if *heapProfile!="" {
   runtime.GC()
   file,err:=os.Create(*heapProfile);if err!=nil{return fmt.Errorf("open heap profile: %w",err)}
@@ -176,6 +205,7 @@ func run() error {
  }
  peak:=peakRSS()
  out:=report{Engine:"moejs-go",Mode:*mode,Bytes:len(input),Iterations:*iters,Warmup:*warmup,PrepareMs:prepareMs,FirstMs:firstMs,Warm:warm,PeakRssKiB:peak,Digest:hex.EncodeToString(digest[:])}
+ out.GoMemory=goMemory
  if *emitResult {out.Result=json.RawMessage(first.data)}
  return json.NewEncoder(os.Stdout).Encode(out)
 }
