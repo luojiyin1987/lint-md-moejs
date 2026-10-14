@@ -15,9 +15,16 @@ npm run bench:smoke --prefix js
 npm run bench --prefix js -- --out bench/results.json
 ```
 
-The driver checks a SHA-256 digest of the **complete serialized output** for
-every cold and warm execution across both engines, refusing to compare
-different answers. It alternates host order between trials.
+The driver validates the **decoded JSON values** across Go/moejs and Node.js
+before benchmarking, then checks each host's own SHA-256 digest across cold,
+warm and repeated calls. Cross-host byte hashes are intentionally **not**
+compared: Go's encoding/json escapes HTML characters (e.g. `>` to `\\u003e`)
+differently from Node's JSON.stringify, without changing the decoded data.
+Semantic probes run in separate processes so emitting full output does not
+affect timed benchmark invocations. A mismatch reports its first field path
+and writes `bench/mismatch.json`; the workflow attempts to upload this
+artifact even when the benchmark step fails. It alternates host order between
+trials.
 
 ## Metric interpretation
 
@@ -91,3 +98,13 @@ are diagnostic, not comparable timing benchmarks (profiling adds overhead).
 Go pprof does not precisely label individual JavaScript parser and rule
 functions; it identifies Go runtime call stacks and memory hot spots.
 Please do not interpret one GitHub runner as production performance evidence.
+
+## Benchmark consistency (PR #6)
+
+`bench/semantic.test.mjs` covers HTML escaping, Unicode, re-ordered JSON keys,
+missing fields and nested field differences. The CI smoke includes `fix`
+alongside `parse` and `lint`, because `fixedText` preserves Markdown
+characters such as `>`. The `outputDigest` in reports is a **Node.js
+reference byte digest**, not a proof of cross-host identical encoding.
+`crossHostSemanticEqual: true` indicates a successful structured check.
+Cold process timing excludes the separate semantic-result probe.

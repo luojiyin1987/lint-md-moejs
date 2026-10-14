@@ -8,3 +8,4 @@ bench/*-top.txt
 bench/profile-*.json
 bench/profile-input.md
 bench/scaling-results.json
+bench/mismatch.json

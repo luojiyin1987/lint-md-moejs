@@ -7,6 +7,7 @@ import { cpus, platform, arch, release } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import assert from 'node:assert/strict';
+import { firstMismatch, describeMismatch } from './semantic.mjs';
 import { fixture } from './workload.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -28,18 +29,22 @@ const scenarios = scaling
       {name: 'small', input: fixture(1)},
       {name: 'large', input: fixture(160)},
     ];
-const kinds = smoke ? ['parse', 'lint'] : ['parse', 'lint', 'fix'];
+const kinds = ['parse', 'lint', 'fix'];
 const repeats = smoke ? 1 : 3;
 const warmup = smoke ? 1 : 10;
 const iterations = smoke ? 2 : scaling ? 12 : 40;
 const rows = [];
-function execute(engine, mode, input, warm) {
+function execute(engine, mode, input, warm, emitResult = false) {
   const args = engine === 'moejs-go'
     ? ['-bundle', bundle, '-mode', mode, '-iterations', String(warm ? iterations : 0),
       '-warmup', String(warm ? warmup : 0)]
     : [nodeScript, '--bundle', bundle, '--mode', mode,
       '--iterations', String(warm ? iterations : 0),
       '--warmup', String(warm ? warmup : 0)];
+  if (emitResult) {
+    if (engine === 'moejs-go') args.push('-emit-result');
+    else args.push('--emit-result', 'true');
+  }
   const executable = engine === 'moejs-go' ? goBinary : process.execPath;
   const start = performance.now();
   const child = spawnSync(executable, args, {
@@ -63,6 +68,19 @@ function median(values) {
 }
 for (const {name, input} of scenarios) {
   for (const mode of kinds) {
+    // Fetch full structured results in separate, untimed processes.
+    // This avoids injecting IPC payload size into the timed benchmark runs.
+    const semantic = {
+      'node-bundled': execute('node-bundled', mode, input, false, true),
+      'moejs-go': execute('moejs-go', mode, input, false, true),
+    };
+    const difference = firstMismatch(semantic['node-bundled'].result, semantic['moejs-go'].result);
+    if (difference) {
+      const diagnostic = { scenario: name, mode, difference };
+      writeFileSync(resolve(root, 'bench/mismatch.json'), JSON.stringify(diagnostic, null, 2) + '\n');
+      throw new Error('Node.js/moejs semantic mismatch for ' + name + '/' + mode +
+        ' at ' + describeMismatch(difference));
+    }
     const observations = { 'moejs-go': [], 'node-bundled': [] };
     for (let i = 0; i < repeats; i++) {
       // Alternate order to mitigate, not eliminate, scheduler/cache bias.
@@ -70,15 +88,18 @@ for (const {name, input} of scenarios) {
       for (const engine of order) {
         const cold = execute(engine, mode, input, false);
         const warm = execute(engine, mode, input, true);
-        assert.equal(cold.digest, warm.digest, 'cold/warm mismatch');
+        assert.equal(cold.digest, semantic[engine].digest,
+          'baseline/cold mismatch within ' + engine + ' for ' + name + '/' + mode);
+        assert.equal(warm.digest, semantic[engine].digest,
+          'baseline/warm mismatch within ' + engine + ' for ' + name + '/' + mode);
         observations[engine].push({cold, warm});
       }
     }
-    const expected = observations['node-bundled'][0].cold.digest;
+    const expected = semantic['node-bundled'].digest;
     for (const engine of ['moejs-go', 'node-bundled']) {
       for (const {cold, warm} of observations[engine]) {
-        assert.equal(cold.digest, expected, 'Node.js/moejs output mismatch: '+name+'/'+mode);
-        assert.equal(warm.digest, expected, 'warm result mismatch');
+        // Different JSON encoders may serialize identical values differently.
+        // Intra-host byte stability was verified above.
       }
       const items = observations[engine];
       const row = {
@@ -99,7 +120,8 @@ for (const {name, input} of scenarios) {
         warmOpsPerSec: median(items.map(o => o.warm.warm.opsPerSec)),
         peakRssKiB: items.every(o => o.warm.peakRssKiB !== null)
           ? median(items.map(o => o.warm.peakRssKiB)) : null,
-        outputDigest: expected,
+        outputDigest: expected, // Node reference's byte-level SHA-256, NOT cross-host equality.
+        crossHostSemanticEqual: true,
       };
       rows.push(row);
       console.log(name, mode, engine,
@@ -129,4 +151,5 @@ const meta = {
 };
 const report = {meta, rows};
 if (outputPath) writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n');
-console.log('PASS benchmark integrity:', rows.length, 'rows, identical SHA-256 outputs');
+console.log('PASS benchmark integrity:', rows.length,
+  'rows, cross-host semantic equality and within-host SHA-256 stability');

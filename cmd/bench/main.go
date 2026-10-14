@@ -56,6 +56,7 @@ type report struct {
  Warm *stats `json:"warm"`
  PeakRssKiB *int64 `json:"peakRssKiB"`
  Digest string `json:"digest"`
+ Result json.RawMessage `json:"result,omitempty"`
 }
 
 func main() {
@@ -68,6 +69,7 @@ func run() error {
  warmup:=flag.Int("warmup",10,"untimed calls before measured calls")
  cpuProfile:=flag.String("cpu-profile","","write CPU pprof for measured warm calls")
  heapProfile:=flag.String("heap-profile","","write retained heap pprof after measured calls")
+ emitResult:=flag.Bool("emit-result",false,"include decoded result outside timing, for semantic comparison")
  flag.Parse()
  if flag.NArg()!=0 || (*mode!="lint" && *mode!="fix" && *mode!="parse") || *iters<0 || *warmup<0 || (*cpuProfile!="" && *iters==0) {
   return errors.New("usage: bench -mode=parse|lint|fix -bundle=<path> -iterations=N -warmup=N")
@@ -174,6 +176,7 @@ func run() error {
  }
  peak:=peakRSS()
  out:=report{Engine:"moejs-go",Mode:*mode,Bytes:len(input),Iterations:*iters,Warmup:*warmup,PrepareMs:prepareMs,FirstMs:firstMs,Warm:warm,PeakRssKiB:peak,Digest:hex.EncodeToString(digest[:])}
+ if *emitResult {out.Result=json.RawMessage(first.data)}
  return json.NewEncoder(os.Stdout).Encode(out)
 }
 func peakRSS() *int64 {
