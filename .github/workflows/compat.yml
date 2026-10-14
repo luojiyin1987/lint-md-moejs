@@ -30,6 +30,8 @@ jobs:
         run: npm run compare:fix --prefix js
       - name: Build benchmark binary outside measurements
         run: go build -o bench/lint-md-go ./cmd/bench
+      - name: Test semantic JSON comparator
+        run: node --test bench/semantic.test.mjs
       - name: Benchmark harness smoke (correctness, no perf thresholds)
         run: npm run bench:smoke --prefix js
       - name: Profile flags smoke (no performance assertions)

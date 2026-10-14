@@ -33,7 +33,8 @@ jobs:
           ./bench/lint-md-go -bundle js/dist/lint-md.mjs -mode lint -warmup 5 -iterations 50 -cpu-profile bench/cpu.pprof -heap-profile bench/heap.pprof < bench/profile-input.md > bench/profile-report.json
           go tool pprof -top -nodecount=20 bench/cpu.pprof > bench/cpu-top.txt
           go tool pprof -alloc_space -top -nodecount=20 bench/heap.pprof > bench/alloc-top.txt
-      - name: Upload raw JSON report
+      - name: Upload raw JSON report and failure diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-md-runtime-benchmark
@@ -45,4 +46,6 @@ jobs:
             bench/heap.pprof
             bench/cpu-top.txt
             bench/alloc-top.txt
+            bench/mismatch.json
           retention-days: 14
+          if-no-files-found: warn

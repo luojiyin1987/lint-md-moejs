@@ -90,4 +90,5 @@ process.stdout.write(JSON.stringify({
   warm,
   peakRssKiB,
   digest,
+  ...(opts['emit-result'] === 'true' ? { result: JSON.parse(first.text) } : {}),
 }) + '\n');
